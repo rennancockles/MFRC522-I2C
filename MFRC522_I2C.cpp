@@ -3,10 +3,11 @@
 * MFRC522.cpp - Based on ARDUINO RFID MODULE KIT 13.56 MHZ WITH TAGS SPI Library BY COOQROBOT.
 * NOTE: Please also check the comments in MFRC522.h - they provide useful hints and background information.
 * Released into the public domain.
+* Author: arozcan @ https://github.com/arozcan/MFRC522-I2C-Library
 */
 
 #include <Arduino.h>
-#include <MFRC522_I2C.h>
+#include "mfrc522_i2c.h"
 #include <Wire.h>
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -17,13 +18,15 @@
  * Constructor.
  * Prepares the output pins.
  */
-MFRC522::MFRC522(	byte chipAddress,
-					byte resetPowerDownPin	///< Arduino pin connected to MFRC522's reset and power down input (Pin 6, NRSTPD, active low)
-				) {
+MFRC522::MFRC522(byte chipAddress) {
 	_chipAddress = chipAddress;
-	_resetPowerDownPin = resetPowerDownPin;
 } // End constructor
 
+MFRC522::MFRC522() {}
+
+void MFRC522::SetChipAddress(byte chipAddress){
+	_chipAddress = chipAddress;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Basic interface functions for communicating with the MFRC522
@@ -70,7 +73,7 @@ byte MFRC522::PCD_ReadRegister(	byte reg	///< The register to read from. One of 
 	Wire.write(reg);
 	Wire.endTransmission();
 
-	Wire.requestFrom(_chipAddress, 1);
+	Wire.requestFrom((int)_chipAddress, 1); // add (int) for compatibility
 	value = Wire.read();
 	return value;
 } // End PCD_ReadRegister()
@@ -182,17 +185,17 @@ void MFRC522::PCD_Init() {
 	// Set the chipSelectPin as digital output, do not select the slave yet
 
 	// Set the resetPowerDownPin as digital output, do not reset or power down.
-	pinMode(_resetPowerDownPin, OUTPUT);
+	// pinMode(_resetPowerDownPin, OUTPUT);
 
 
-	if (digitalRead(_resetPowerDownPin) == LOW) {	//The MFRC522 chip is in power down mode.
-		digitalWrite(_resetPowerDownPin, HIGH);		// Exit power down mode. This triggers a hard reset.
-		// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74�s. Let us be generous: 50ms.
-		delay(50);
-	}
-	else { // Perform a soft reset
-		PCD_Reset();
-	}
+	// if (digitalRead(_resetPowerDownPin) == LOW) {	//The MFRC522 chip is in power down mode.
+	// 	digitalWrite(_resetPowerDownPin, HIGH);		// Exit power down mode. This triggers a hard reset.
+	// 	// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74�s. Let us be generous: 50ms.
+	// 	delay(50);
+	// }
+	// else { // Perform a soft reset
+	PCD_Reset();
+	// }
 
 	// When communicating with a PICC we need a timeout if something goes wrong.
 	// f_timer = 13.56 MHz / (2*TPreScaler+1) where TPreScaler = [TPrescaler_Hi:TPrescaler_Lo].
@@ -1270,6 +1273,43 @@ void MFRC522::PICC_DumpToSerial(Uid *uid	///< Pointer to Uid struct returned fro
 } // End PICC_DumpToSerial()
 
 /**
+ * Dumps card info (UID,SAK,Type) about the selected PICC to Serial.
+ */
+void MFRC522::PICC_DumpDetailsToSerial(Uid *uid	///< Pointer to Uid struct returned from a successful PICC_Select().
+									) {
+	byte bcc = 0;
+
+	// UID
+	Serial.print(F("Card UID:"));
+	for (byte i = 0; i < uid->size; i++) {
+		if(uid->uidByte[i] < 0x10)
+			Serial.print(F(" 0"));
+		else
+			Serial.print(F(" "));
+		Serial.print(uid->uidByte[i], HEX);
+		bcc = bcc ^ uid->uidByte[i];
+	}
+	Serial.println();
+
+	// BCC
+	Serial.print(F("Card BCC: "));
+	if(bcc < 0x10)
+		Serial.print(F("0"));
+	Serial.println(bcc, HEX);
+
+	// SAK
+	Serial.print(F("Card SAK: "));
+	if(uid->sak < 0x10)
+		Serial.print(F("0"));
+	Serial.println(uid->sak, HEX);
+
+	// (suggested) PICC type
+	byte piccType = PICC_GetType(uid->sak);
+	Serial.print(F("PICC type: "));
+	Serial.println(PICC_GetTypeName(piccType));
+} // End PICC_DumpDetailsToSerial()
+
+/**
  * Dumps memory contents of a MIFARE Classic PICC.
  * On success the PICC is halted after dumping the data.
  */
@@ -1619,9 +1659,9 @@ bool MFRC522::MIFARE_SetUid(byte *newUid, byte uidSize, bool logErrors) {
 			// We get a read timeout if no card is selected yet, so let's select one
 
 			// Wake the card up again if sleeping
-//			  byte atqa_answer[2];
-//			  byte atqa_size = 2;
-//			  PICC_WakeupA(atqa_answer, &atqa_size);
+			// byte atqa_answer[2];
+			// byte atqa_size = 2;
+			// PICC_WakeupA(atqa_answer, &atqa_size);
 
 			if (!PICC_IsNewCardPresent() || !PICC_ReadCardSerial()) {
 				Serial.println(F("No card was previously selected, and none are available. Failed to set UID."));

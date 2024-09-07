@@ -320,7 +320,9 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Functions for setting up the Arduino
 	/////////////////////////////////////////////////////////////////////////////////////
-	MFRC522(byte chipAddress, byte resetPowerDownPin);
+	MFRC522();
+	MFRC522(byte chipAddress);
+	void SetChipAddress(byte chipAddress);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Basic interface functions for communicating with the MFRC522
@@ -383,6 +385,7 @@ public:
 	//const char *PICC_GetTypeName(byte type);
 	const __FlashStringHelper *PICC_GetTypeName(byte type);
 	void PICC_DumpToSerial(Uid *uid);
+	void PICC_DumpDetailsToSerial(Uid *uid);
 	void PICC_DumpMifareClassicToSerial(Uid *uid, byte piccType, MIFARE_Key *key);
 	void PICC_DumpMifareClassicSectorToSerial(Uid *uid, MIFARE_Key *key, byte sector);
 	void PICC_DumpMifareUltralightToSerial();
